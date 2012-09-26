@@ -18,23 +18,33 @@ Link with -lssl -lcrypto
 
 Changelog
 ---------
-VERSION: 1.6
+VERSION 1.6:
 * added https support via openssl
 * removed opt.HEADERS
-1.5:
+
+Version 1.5:
+
 * changed COKIEFILE to COOKIEFILE
 * added cleanup method
 * changed internal constans
 * added cleanup for cookiemanager
 * added bind to interface
-1.4:
+
+Version 1.4:
+
 * changed from malloc to new
-1.3:
+
+Version 1.3:
+
 * fixed output overflow
-1.2:
+
+Version 1.2:
+
 * Added outputfile option
 * using byte copys now 
-1.1:
+
+Version 1.1:
+
 * Added Content-Length Header
 
 TODO
