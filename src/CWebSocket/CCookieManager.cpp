@@ -15,9 +15,8 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+#ifndef NO_COOKIES
 #include "CCookieManager.h"
-
-
 CCookieManager::CCookieManager(void)
 {	
 	nCookies = 0;
@@ -38,7 +37,7 @@ int CCookieManager::CookieExists(char *varname)
 {
 	for (unsigned int i = 0; i < nCookies; ++i)
 	{
-		if (!stricmpn(varname, cVar[i], COOKIE_MAX_NAME))
+		if (!CWebSocket::stricmpn(varname, cVar[i], COOKIE_MAX_NAME))
 		{
 			return i;
 		}
@@ -155,17 +154,17 @@ bool CCookieManager::CookieAddHTTP(char *data)
 	char *name; char *value; char *expires; char *path; char *domain;
 	name = value = expires = path = domain = NULL;
 
-	int pos = strpos(data, ";", start);
+	int pos = CWebSocket::strpos(data, ";", start);
 	while (pos > 0)
 	{
-		char *bump = substr(data, start, pos-start);
+		char *bump = CWebSocket::substr(data, start, pos-start);
 
-		int upos = strpos(bump, "=");
+		int upos = CWebSocket::strpos(bump, "=");
 
 		if (upos > 0)
 		{
-			char *var = substr(bump, 0, upos);
-			char *val = substr(bump, upos+1);
+			char *var = CWebSocket::substr(bump, 0, upos);
+			char *val = CWebSocket::substr(bump, upos+1);
 
 			if (isName)
 			{
@@ -210,7 +209,7 @@ bool CCookieManager::CookieAddHTTP(char *data)
 	
 		free(bump);
 		start=pos+2;
-		pos = strpos(data, ";", start);
+		pos = CWebSocket::strpos(data, ";", start);
 	}
 	
 	bool retval = CookieAdd(name, value, expires, path, domain);
@@ -232,7 +231,7 @@ char *CCookieManager::BuildRequest(char *out)
 		strcat(out, "Cookie:");
 		for (unsigned int i = 0; i < nCookies; ++i)
 		{
-			strcatf(out, " %s=%s%c", cVar[i], cValue[i] , (i < (nCookies-1)) ? ';' : '\0');
+			CWebSocket::strcatf(out, " %s=%s%c", cVar[i], cValue[i] , (i < (nCookies-1)) ? ';' : '\0');
 		}
 	}
 	return out;
@@ -286,3 +285,4 @@ void CCookieManager::cleanup(void)
 	}
 	nCookies = 0;
 }
+#endif

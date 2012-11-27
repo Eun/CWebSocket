@@ -15,7 +15,8 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-#pragma once
+#ifndef INCLUDED_CWEBSOCKET
+#define INCLUDED_CWEBSOCKET
 
 #if ( defined (_WIN32) || defined (_WIN64) )
 	#pragma comment(lib, "ws2_32.lib")
@@ -26,13 +27,13 @@
 #include <string.h>
 #include <stdarg.h>
 #include <stdlib.h>
-#include <openssl/rand.h>
-#include <openssl/ssl.h>
-#include <openssl/err.h>
-#include "CCookieManager.h"
-#include "helpers.h"
 
-
+#ifndef NO_COOKIES
+	#include "CCookieManager.h"
+	class CCookieManager;
+#else
+	typedef char CCookieManager;
+#endif
 
 
 #if ( defined (_WIN32) || defined (_WIN64) )
@@ -50,11 +51,29 @@
 	#define closesocket close
 #endif
 
+#ifdef OPENSSL
+	#if ( defined (_WIN32) || defined (_WIN64) )
+		#ifdef _DEBUG
+			#pragma comment(lib, "win32/lib/libeay32MTd.lib")
+			#pragma comment(lib, "win32/lib/ssleay32MTd.lib")
+		#else
+			#pragma comment(lib, "win32/lib/libeay32MT.lib")
+			#pragma comment(lib, "win32/lib/ssleay32MT.lib")
+		#endif
+	#endif
+	#include <openssl/rand.h>
+	#include <openssl/ssl.h>
+	#include <openssl/err.h>
+#endif
+
+
 #define CWEB_MAX_URL 265
 #define CWEB_MAX_POSTDATA 265
 #define CWEB_MAX_RECIVE 8192
 #define CWEB_ALL 0
 #define CWEB_KEEPCOOKIES 1
+
+
 
 class CWebSocket
 {
@@ -67,6 +86,10 @@ private:
 		unsigned int length;
 		//bool chunked;
 	} headerInfoT;
+
+	#ifndef OPENSSL
+		typedef void* SSL;
+	#endif
 
 	char sProtocol[128];
 	char sHost[128];
@@ -83,7 +106,7 @@ private:
 	//void CWebSocket::unchunkHTTP11(char *data);
 
 	char *pOutput;
-	
+		
 public:
 	CWebSocket(void);
 	char *exec(void);
@@ -120,5 +143,98 @@ public:
 	optT opt;
 	returnT ret;
 	unsigned int nErrorCode;	
-};
+	
+	
+	// helpers
+	static char *strcatf(char *dst, char *format, ...)
+	{
+		va_list	argptr;
+		char	temp_buffer[1024];
+		int		len;
+	 
+	 
+		va_start (argptr, format);
+		vsprintf (temp_buffer, format,argptr);
+		va_end (argptr);
+	 
+		if ((len = strlen(temp_buffer)) >= 1024)
+		{
+			return dst;
+		}
+	 
+		strncat(dst, temp_buffer, len+1);
+		return dst;
+	}
+			
+	static int stricmpn (const char *s1, const char *s2, int n)
+	{
+		int		c1, c2;
+		// bk001129 - moved in 1.17 fix not in id codebase
+			if ( s1 == NULL ) {
+			   if ( s2 == NULL )
+				 return 0;
+			   else
+				 return -1;
+			}
+			else if ( s2==NULL )
+			  return 1;	
+		do {
+			c1 = *s1++;
+			c2 = *s2++;
+			if (!n--) {
+				return 0;		// strings are equal until end point
+			}
+			
+			if (c1 != c2) {
+				if (c1 >= 'a' && c1 <= 'z') {
+					c1 -= ('a' - 'A');
+				}
+				if (c2 >= 'a' && c2 <= 'z') {
+					c2 -= ('a' - 'A');
+				}
+				if (c1 != c2) {
+					return c1 < c2 ? -1 : 1;
+				}
+			}
+		} while (c1);
 
+		return 0;		// strings are equal
+	}
+
+
+
+	static char *substr(const char *pstr, int start)
+	{
+		return substr(pstr, start, strlen(pstr) - start);
+	}
+	static char *substr(const char *pstr, int start, int numchars)
+	{
+		char *pnew = (char*)malloc(numchars+1);
+		strncpy(pnew, pstr + start, numchars);
+		pnew[numchars] = 0;
+		return pnew;
+	}
+
+	static int strpos(char *str, char *target)
+	{
+	   char *res = strstr(str, target); 
+	   if (res == NULL) return -1;
+	   else             return res - str;
+	}
+
+	static int strpos(char *str, char *target, int start)
+	{
+	   char *tmp = str;
+	   int x = 0;
+	   while (x<start)
+	   {
+		   *tmp++;
+		   x++;
+	   }
+	   char *res = strstr(tmp, target); 
+	   if (res == NULL) return -1;
+	   else             return res - str;
+	}
+	
+};
+#endif
