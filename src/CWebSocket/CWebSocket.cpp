@@ -25,7 +25,7 @@
 //  1.7:
 //		 * added openssl preprocessor
 //		 * if openssl is disabled fallback to http
-//		 * added NoCoockies preprocessor
+//		 * added NoCookies preprocessor
 //  1.6:
 //		 * added https support via openssl
 //		 * removed opt.HEADERS
