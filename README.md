@@ -18,7 +18,7 @@ Link with -lssl -lcrypto
 Preprocessors
 -------------
 * OPENSSL - build with https support
-* NO_COOKIES  - donot include cookie management
+* NO_COOKIES  - do not include cookie management
 * COOKIE_SIMPLE - Simple Cookie Management
 
 Changelog
