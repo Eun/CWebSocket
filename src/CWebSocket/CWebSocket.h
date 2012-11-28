@@ -54,11 +54,11 @@
 #ifdef OPENSSL
 	#if ( defined (_WIN32) || defined (_WIN64) )
 		#ifdef _DEBUG
-			#pragma comment(lib, "win32/lib/libeay32MTd.lib")
 			#pragma comment(lib, "win32/lib/ssleay32MTd.lib")
+			#pragma comment(lib, "win32/lib/libeay32MTd.lib")
 		#else
-			#pragma comment(lib, "win32/lib/libeay32MT.lib")
 			#pragma comment(lib, "win32/lib/ssleay32MT.lib")
+			#pragma comment(lib, "win32/lib/libeay32MT.lib")
 		#endif
 	#endif
 	#include <openssl/rand.h>

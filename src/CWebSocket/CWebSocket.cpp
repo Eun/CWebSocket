@@ -23,9 +23,9 @@
 //		 HEADER output
 // Changelog:
 //  1.7:
-//		 * added openssl preprocessor
-//		 * if openssl is disabled fallback to http
-//		 * added NoCookies preprocessor
+//		* added openssl, nocookies preprocessor
+//		* if openssl is disabled fallback to http
+//		* fixed mem leak
 //  1.6:
 //		 * added https support via openssl
 //		 * removed opt.HEADERS
@@ -312,6 +312,7 @@ char* CWebSocket::exec(void)
 {
 	if (this->nErrorCode == 0)
 	{
+		pOutput = NULL;
 		//char ContentLength[128] = "";
 		char request[512] = "";
 		bool bSSL;
@@ -565,18 +566,14 @@ char* CWebSocket::exec(void)
 				iOptVal = 10;
 				setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char*)&iOptVal, iOptLen);
 			}
-
-			// basicly like realloc ( but realloc is sometimes rly wired )
-
 			char *newBuffer;
-			//newBuffer = (char*)malloc((bytes_read + outsize) * sizeof(char*)); 
-			newBuffer = new char[bytes_read + outsize];
+			newBuffer = new char[bytes_read + outsize + 1];
 
-			memset(newBuffer, 0, sizeof(newBuffer));
+			memset(newBuffer, 0, bytes_read + outsize + 1);
 			if (out != NULL)
 			{
 				memcpy(newBuffer, out, outsize);
-				free(out);
+				delete [] out;
 			}
 			out = newBuffer;
 			//
