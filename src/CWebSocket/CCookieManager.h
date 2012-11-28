@@ -15,13 +15,13 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-#pragma once
-
+#ifndef INCLUDED_CCOOKIEMANAGER
+#define INCLUDED_CCOOKIEMANAGER
+#ifndef NO_COOKIES
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "helpers.h"
-
+#include "CWebSocket.h"
 
 #define COOKIE_SIMPLE
 #define COOKIE_MAX_BYTES	768
@@ -51,4 +51,5 @@ public:
 	void DebugOutput(void);
 	void cleanup(void);
 };
-
+#endif
+#endif

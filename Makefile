@@ -6,10 +6,16 @@ OBJC = $(shell find ./src/ -name "*.c" | sed 's/\.c/\.o/g' | sed 's/\.\/src\//\.
 OBJCPP = $(shell find ./src/ -name "*.cpp" | sed 's/\.cpp/\.opp/g' | sed 's/\.\/src\//\.\/obj\//g')
 OBJ = $(OBJC) $(OBJCPP)
 
-CFLAGS = -Wall -I./inc/
-CPPFLAGS = -Wall -I./inc/
+# put preprocessor defines here
+# OPENSSL - build with https support
+# NO_COOKIES  - donot include cookie management
+# COOKIE_SIMPLE - Simple Cookie Management
+BFLAGS = -DOPENSSL
+
+CFLAGS = -Wall -I./inc/ $(BFLAGS)
+CPPFLAGS = -Wall -I./inc/ $(BFLAGS)
 LDFLAGS = -Wall
-LIBS = -lssl -lcrypto
+LIBS = -Bstatic -lssl -lcrypto
 
 
 # ========================================================================= #
