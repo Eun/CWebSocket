@@ -15,10 +15,22 @@ see example.php
 Link with -lssl -lcrypto
 
 
+Preprocessors
+-------------
+OPENSSL - build with https support
+NO_COOKIES  - donot include cookie management
+COOKIE_SIMPLE - Simple Cookie Management
 
 Changelog
 ---------
+VERSION 1.7:
+
+* added openssl, nocookies preprocessor
+* if openssl is disabled fallback to http
+* fixed mem leak
+
 VERSION 1.6:
+
 * added https support via openssl
 * removed opt.HEADERS
 

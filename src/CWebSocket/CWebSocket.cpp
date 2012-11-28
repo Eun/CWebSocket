@@ -15,13 +15,17 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-// VERSION: 1.6
+// VERSION: 1.7
 
 // TODO: cookiefile support       
 //       http 1.1 + unchunk
 //		 auth
 //		 HEADER output
 // Changelog:
+//  1.7:
+//		* added openssl, nocookies preprocessor
+//		* if openssl is disabled fallback to http
+//		* fixed mem leak
 //  1.6:
 //		 * added https support via openssl
 //		 * removed opt.HEADERS
@@ -75,13 +79,17 @@ CWebSocket::CWebSocket(void)
 	opt.RETURNTRANSFER = true;
 	memset(opt.POSTDATA, 0, sizeof(opt.POSTDATA));
 	opt.AUTOFOLLOWLOCATION = true;
-	memset(opt.COOKIEFILE, 0, sizeof(opt.COOKIEFILE));
+	#ifndef NO_COOKIES
+		memset(opt.COOKIEFILE, 0, sizeof(opt.COOKIEFILE));
+	#endif
 	memset(opt.USERAGENT, 0, sizeof(opt.USERAGENT));
 	memset(opt.REFERER, 0, sizeof(opt.REFERER));
 	memset(opt.LANGUAGE, 0, sizeof(opt.LANGUAGE));
 	opt.TIMEOUT = 10000;
-	opt.ACCEPTCOOKIES = false;
-	opt.Cookies = NULL;
+	#ifndef NO_COOKIES
+		opt.ACCEPTCOOKIES = false;
+		opt.Cookies = NULL;
+	#endif
 	memset(opt.OUTPUTFILE, 0, sizeof(opt.OUTPUTFILE));
 	memset(opt.BINDIP, 0, sizeof(opt.BINDIP));
 }
@@ -206,28 +214,37 @@ CWebSocket::headerInfoT CWebSocket::parse_headers(char *data, bool bSSL)
 					headerInfo.status = atoi(tmp);
 					free(tmp);
 				}
-				else if (!stricmpn(headerline, "set-cookie:", 11) && opt.ACCEPTCOOKIES)
-				{
-					if (opt.Cookies == NULL)
+				#ifndef NO_COOKIES
+					else if (!stricmpn(headerline, "set-cookie:", 11) && opt.ACCEPTCOOKIES)
 					{
-						opt.Cookies = new CCookieManager();
+							if (opt.Cookies == NULL)
+							{
+								opt.Cookies = new CCookieManager();
+							}
+							opt.Cookies->CookieAddHTTP(headerline);
 					}
-					opt.Cookies->CookieAddHTTP(headerline);
-				}
+				#endif
 				else if (!stricmpn(headerline, "location:", 9) && opt.AUTOFOLLOWLOCATION)
 				{
 					char *tmp = substr(headerline, 10);
-					if (!stricmpn(tmp, "http://", 7) || !stricmpn(tmp, "https://", 8))
+					if (
+						!stricmpn(tmp, "http://", 7) 
+						#ifdef OPENSSL
+							|| !stricmpn(tmp, "https://", 8)
+						#endif
+						)
 					{
 						strcpy(headerInfo.location, tmp);
 					}
 					else
-					{
+					{	
+						#ifdef OPENSSL
 						if (bSSL)
 						{
 							sprintf(headerInfo.location, "https://%s%s%s", sHost, sPath, tmp);
 						}
 						else
+						#endif
 						{
 							sprintf(headerInfo.location, "http://%s%s%s", sHost, sPath, tmp);
 						}
@@ -295,6 +312,7 @@ char* CWebSocket::exec(void)
 {
 	if (this->nErrorCode == 0)
 	{
+		pOutput = NULL;
 		//char ContentLength[128] = "";
 		char request[512] = "";
 		bool bSSL;
@@ -314,11 +332,16 @@ char* CWebSocket::exec(void)
 		SplitUrl(opt.URL, sProtocol, sHost, sUri);
 		GetPath(sUri, sPath);
 				
-		if (!stricmp(sProtocol, "https"))
-			bSSL = true;
-		else
+		#ifdef OPENSSL
+			if (!stricmp(sProtocol, "https"))
+				bSSL = true;
+			else
+				bSSL = false;
+		#else
 			bSSL = false;
+		#endif
 				
+		
 
 		memset(sHostIP, 0, sizeof(sHostIP));
 
@@ -353,10 +376,12 @@ char* CWebSocket::exec(void)
 	
 		
 		// load cookie array if needed
-		if (opt.Cookies && opt.Cookies->GetCookieCount() > 0)
-		{
-			opt.Cookies->BuildRequest(request);
-		}
+		#ifndef NO_COOKIES
+			if (opt.Cookies && opt.Cookies->GetCookieCount() > 0)
+			{
+				opt.Cookies->BuildRequest(request);
+			}
+		#endif
 
 		if (opt.POSTDATA[0])
 		{
@@ -368,9 +393,11 @@ char* CWebSocket::exec(void)
 			strcat(request, "Connection: close\r\n\r\n");
 
 
-			
+
 		SSL *sslHandle = NULL;
-		SSL_CTX *sslContext = NULL;
+		#ifdef OPENSSL
+			SSL_CTX *sslContext = NULL;
+		#endif
 		SOCKET sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
 		
@@ -393,11 +420,15 @@ char* CWebSocket::exec(void)
 		inet_aton(sHostIP, &serv_addr.sin_addr);	
 #endif
 
-		if (bSSL)
-			serv_addr.sin_port = htons(443);	
-		else
+		#ifdef OPENSSL
+			if (bSSL)
+				serv_addr.sin_port = htons(443);	
+			else
+				serv_addr.sin_port = htons(80);
+
+		#else
 			serv_addr.sin_port = htons(80);
-		
+		#endif	
 		
 		if (strlen(opt.BINDIP) > 0)
 		{
@@ -425,6 +456,7 @@ char* CWebSocket::exec(void)
 			return false;
 		}
 
+		#ifdef OPENSSL
 		if (bSSL)
 		{
 			SSL_load_error_strings();
@@ -496,6 +528,7 @@ char* CWebSocket::exec(void)
 			}
 		}
 		else
+		#endif
 		{
 			int bytes_send = send(sock, request, strlen(request), 0);
 			if (bytes_send < 0)
@@ -533,18 +566,14 @@ char* CWebSocket::exec(void)
 				iOptVal = 10;
 				setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char*)&iOptVal, iOptLen);
 			}
-
-			// basicly like realloc ( but realloc is sometimes rly wired )
-
 			char *newBuffer;
-			//newBuffer = (char*)malloc((bytes_read + outsize) * sizeof(char*)); 
-			newBuffer = new char[bytes_read + outsize];
+			newBuffer = new char[bytes_read + outsize + 1];
 
-			memset(newBuffer, 0, sizeof(newBuffer));
+			memset(newBuffer, 0, bytes_read + outsize + 1);
 			if (out != NULL)
 			{
 				memcpy(newBuffer, out, outsize);
-				free(out);
+				delete [] out;
 			}
 			out = newBuffer;
 			//
@@ -571,15 +600,17 @@ char* CWebSocket::exec(void)
 						strcpy(opt.URL, headerInfo.location);
 						
 						closesocket(sock);
-						if (sslHandle)
-						{
-						  SSL_shutdown (sslHandle);
-						  SSL_free (sslHandle);
-						}
-						if (sslContext)
-						{
-							SSL_CTX_free (sslContext);
-						}
+						#ifdef OPENSSL
+							if (sslHandle)
+							{
+							  SSL_shutdown (sslHandle);
+							  SSL_free (sslHandle);
+							}
+							if (sslContext)
+							{
+								SSL_CTX_free (sslContext);
+							}
+						#endif
 						if (out)
 						{
 							delete [] out;
@@ -613,15 +644,17 @@ char* CWebSocket::exec(void)
 		}
 
 		closesocket(sock);
-		if (sslHandle)
-		{
-			SSL_shutdown (sslHandle);
-			SSL_free (sslHandle);
-		}
-		if (sslContext)
-		{
-			SSL_CTX_free (sslContext);
-		}
+		#ifdef OPENSSL
+			if (sslHandle)
+			{
+				SSL_shutdown (sslHandle);
+				SSL_free (sslHandle);
+			}
+			if (sslContext)
+			{
+				SSL_CTX_free (sslContext);
+			}
+		#endif
 
 		ret.bytes = outsize;
 		ret.status = headerInfo.status;
@@ -656,10 +689,14 @@ char* CWebSocket::exec(void)
 
 int CWebSocket::readfromsocket(SOCKET sock, SSL *sslHandle, char *buffer, int len)
 {
-	if (sslHandle != NULL)
-		return SSL_read (sslHandle, buffer, CWEB_MAX_RECIVE-1);
-	else
+	#ifdef OPENSSL
+		if (sslHandle != NULL)
+			return SSL_read (sslHandle, buffer, CWEB_MAX_RECIVE-1);
+		else
+			return recv(sock, buffer, CWEB_MAX_RECIVE-1, 0);
+	#else
 		return recv(sock, buffer, CWEB_MAX_RECIVE-1, 0);
+	#endif
 }
 
 void CWebSocket::cleanup(void)
@@ -673,12 +710,14 @@ void CWebSocket::cleanup(int flags)
 		delete [] pOutput;
 		pOutput = NULL;
 	}
-	if (flags != CWEB_KEEPCOOKIES)
-	{
-		if (opt.Cookies != NULL)
+	#ifndef NO_COOKIES
+		if (flags != CWEB_KEEPCOOKIES)
 		{
-			delete [] opt.Cookies;
-			opt.Cookies = NULL;
+			if (opt.Cookies != NULL)
+			{
+				delete [] opt.Cookies;
+				opt.Cookies = NULL;
+			}
 		}
-	}
+	#endif
 }
